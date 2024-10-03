@@ -29,7 +29,7 @@ function ReservationForm({ cabin, user }) {
   const createBookingWithData = createBooking.bind(null, bookingData);
 
   const handlePayOnline = async (formData) => {
-    alert("hello from online");
+    alert("Online module In Progress");
     console.log(formData);
   };
   
