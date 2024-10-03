@@ -58,11 +58,11 @@ function DateSelector({ settings, cabin, bookedDates }) {
               <>
                 <span className="text-2xl">${regularPrice - discount}</span>
                 <span className="line-through font-semibold text-primary-700">
-                  ${regularPrice}
+                  Rs{regularPrice}
                 </span>
               </>
             ) : (
-              <span className="text-2xl">${regularPrice}</span>
+              <span className="text-2xl">Rs{regularPrice}</span>
             )}
             <span className="">/night</span>
           </p>
@@ -73,7 +73,7 @@ function DateSelector({ settings, cabin, bookedDates }) {
               </p>
               <p>
                 <span className="text-lg font-bold uppercase">Total</span>{" "}
-                <span className="text-2xl font-semibold">${cabinPrice}</span>
+                <span className="text-2xl font-semibold">Rs{cabinPrice}</span>
               </p>
             </>
           ) : null}

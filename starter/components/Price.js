@@ -8,10 +8,10 @@ async function Price({ cabinId }) {
       {discount > 0 ? (
         <>
           <span className='text-3xl font-[350]'>
-            ${regularPrice - discount}
+            Rs{regularPrice - discount}
           </span>
           <span className='line-through font-semibold text-primary-600'>
-            ${regularPrice}
+            Rs{regularPrice}
           </span>
         </>
       ) : (

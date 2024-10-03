@@ -2,10 +2,13 @@
 
 import { differenceInDays } from "date-fns";
 import { useReservation } from "./ReservationContext";
-import { createBooking } from "../_lib/actions";
-import SubmitButton from "./SubmitButton";
+import { createBooking, createBookingOnline } from "../_lib/actions";
+import { useRouter } from "next/navigation";
+import axios from 'axios';
+import Razorpay from "razorpay";
 
 function ReservationForm({ cabin, user }) {
+  const router = useRouter();
   const { range, resetRange } = useReservation();
   const { maxCapacity, regularPrice, discount, id } = cabin;
 
@@ -17,13 +20,41 @@ function ReservationForm({ cabin, user }) {
 
   const bookingData = {
     startDate,
-    endDate,
+    endDate, 
     numNights,
     cabinPrice,
     cabinId: id,
   };
 
   const createBookingWithData = createBooking.bind(null, bookingData);
+
+  const handlePayOnline = async (formData) => {
+    alert("hello from online");
+    console.log(formData);
+  };
+  
+  const handlePayOffline = async (formData) => {
+    try {
+      await createBookingWithData(formData);
+      resetRange();
+    } catch (error) {
+      console.error("Error creating booking:", error);
+      alert("There was an issue creating your booking. Please try again.");
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+
+    const submitButton = e.nativeEvent.submitter.name;
+
+    if (submitButton === 'payOffline') {
+      await handlePayOffline(formData);
+    } else if (submitButton === 'payOnline') {
+      await handlePayOnline(formData);
+    }
+  };
 
   return (
     <div className="scale-[1.01]">
@@ -32,7 +63,6 @@ function ReservationForm({ cabin, user }) {
 
         <div className="flex gap-4 items-center">
           <img
-            // Important to display google profile images
             referrerPolicy="no-referrer"
             className="h-8 rounded-full"
             src={user.image}
@@ -42,14 +72,7 @@ function ReservationForm({ cabin, user }) {
         </div>
       </div>
 
-      <form
-        // action={createBookingWithData}
-        action={async (formData) => {
-          await createBookingWithData(formData);
-          resetRange();
-        }}
-        className="bg-primary-900 py-10 px-16 text-lg flex gap-5 flex-col"
-      >
+      <form onSubmit={handleSubmit} className="bg-primary-900 py-10 px-16 text-lg flex gap-5 flex-col">
         <div className="space-y-2">
           <label htmlFor="numGuests">How many guests?</label>
           <select
@@ -87,7 +110,22 @@ function ReservationForm({ cabin, user }) {
               Start by selecting dates
             </p>
           ) : (
-            <SubmitButton pendingLabel="Reserving...">Reserve now</SubmitButton>
+            <>
+              <button
+                className="bg-accent-500 px-8 py-4 text-primary-800 font-semibold hover:bg-accent-600 transition-all disabled:cursor-not-allowed disabled:bg-gray-500 disabled:text-gray-300"
+                name="payOffline"  
+                type="submit"
+              >
+                Pay on Arrival
+              </button>
+              <button
+                className="bg-accent-500 px-8 py-4 text-primary-800 font-semibold hover:bg-accent-600 transition-all disabled:cursor-not-allowed disabled:bg-gray-500 disabled:text-gray-300"
+                name="payOnline"  
+                type="submit"
+              >
+                Pay Online
+              </button>
+            </>
           )}
         </div>
       </form>
