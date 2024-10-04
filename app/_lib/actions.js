@@ -53,26 +53,45 @@ export async function createBooking(bookingData, formData) {
   redirect("/cabins/thankyou");
 }
 
-export async function createBookingOnline(bookingData, formData) {
+export async function createBookingOnline(bookingData, formDataObject) {
   const session = await auth();
-  if (!session) throw new Error("You must be logged in");
+
+  if (!session) {
+    throw new Error("You must be logged in");
+  }
+
+  if (!session.user.guestId) {
+    throw new Error("Guest ID is missing for the logged-in user");
+  }
+
+  const numGuests = Number(formDataObject.numGuests); 
+  const observations = formDataObject.observations || "";
+
+  if (isNaN(numGuests) || numGuests <= 0) {
+    throw new Error("Invalid number of guests");
+  }
 
   const newBooking = {
     ...bookingData,
-    guestId: session.user.guestId,                
-    numGuests: Number(formData.get("numGuests")), 
-    observations: formData.get("observations").slice(0, 1000), 
-    extrasPrice: 0,                               
-    totalPrice: bookingData.cabinPrice,           
-    isPaid: false,                               
-    hasBreakfast: false,                         
-    status: "unconfirmed",                        
+    guestId: session.user.guestId,            
+    numGuests,                                
+    observations: observations.slice(0, 1000),
+    extrasPrice: 0,                           
+    totalPrice: bookingData.cabinPrice,        
+    isPaid: true,                             
+    hasBreakfast: false,                      
+    status: "confirmed",                      
   };
 
-  // Insert the new booking into Supabase
-  const { data, error } = await supabase.from("bookings").insert([newBooking]).select();
+  const { data, error } = await supabase
+    .from("bookings")
+    .insert([newBooking])
+    .select();
 
-  if (error) throw new Error("Booking could not be created");
+  if (error) {
+    console.error("Supabase error:", error);
+    throw new Error("Booking could not be created. Please try again.");
+  }
 
   if (!data || data.length === 0) {
     throw new Error("No booking data returned from Supabase.");
@@ -82,6 +101,7 @@ export async function createBookingOnline(bookingData, formData) {
 
   return data[0].id;
 }
+
 
 
 

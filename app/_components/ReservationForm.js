@@ -1,10 +1,10 @@
-"use client";
+"use client"
 
 import { differenceInDays } from "date-fns";
 import { useReservation } from "./ReservationContext";
 import { createBooking, createBookingOnline } from "../_lib/actions";
 import { useRouter } from "next/navigation";
-import axios from 'axios';
+import axios from "axios";
 import Razorpay from "razorpay";
 
 function ReservationForm({ cabin, user }) {
@@ -18,24 +18,9 @@ function ReservationForm({ cabin, user }) {
   const numNights = differenceInDays(endDate, startDate);
   const cabinPrice = numNights * (regularPrice - discount);
 
-  const bookingData = {
-    startDate,
-    endDate, 
-    numNights,
-    cabinPrice,
-    cabinId: id,
-  };
-
-  const createBookingWithData = createBooking.bind(null, bookingData);
-
-  const handlePayOnline = async (formData) => {
-    alert("Online module In Progress");
-    console.log(formData);
-  };
-  
-  const handlePayOffline = async (formData) => {
+  const createBookingWithData = async (bookingData) => {
     try {
-      await createBookingWithData(formData);
+      await createBooking(bookingData);
       resetRange();
     } catch (error) {
       console.error("Error creating booking:", error);
@@ -43,16 +28,93 @@ function ReservationForm({ cabin, user }) {
     }
   };
 
+  const handlePayOffline = async (formDataObject) => {
+    const bookingData = {
+      startDate,
+      endDate,
+      numNights,
+      cabinPrice,
+      cabinId: id,
+      ...formDataObject, 
+    };
+
+    await createBookingWithData(bookingData);
+  };
+
+  const handlePayOnline = async (formDataObject) => {
+    try {
+      const bookingData = {
+        startDate,
+        endDate,
+        numNights,
+        cabinPrice,
+        cabinId: id,
+        ...formDataObject, 
+      };
+
+      const amountInPaisa = cabinPrice * 100;
+
+      const options = {
+        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID, 
+        amount: amountInPaisa, 
+        currency: "INR",
+        name: "The Wild Oasis",
+        description: `Booking for ${numNights} nights`, 
+        handler: async function (response) {
+          try {
+            const { razorpay_payment_id } = response;
+            if (!razorpay_payment_id) {
+              throw new Error("Payment ID missing from Razorpay response.");
+            }
+  
+            bookingData.paymentId = razorpay_payment_id;
+
+            console.log("Booking data after payment:", bookingData);
+
+            await createBookingOnline(bookingData, formDataObject);
+
+            alert("Payment successful and room booked!");
+
+            resetRange();
+            router.push("/cabins/thankyou"); 
+          } catch (error) {
+            console.error("Error creating booking after payment:", error.message || error);
+            alert("There was an issue creating your booking after payment. Please contact support.");
+          }
+        },
+        prefill: {
+          name: formDataObject.name || "Guest",
+          email: formDataObject.email || "", 
+        },
+      };
+
+      const paymentObject = new window.Razorpay(options);
+  
+      // Handle payment failure
+      paymentObject.on("payment.failed", function (response) {
+        console.error("Payment failed:", response.error);
+        alert("Payment failed: " + response.error.description);
+      });
+
+      paymentObject.open();
+    } catch (error) {
+      console.error("Error during online payment process:", error.message || error);
+      alert("There was an issue with the payment. Please try again.");
+    }
+  };
+  
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     const formData = new FormData(e.target);
+    const formDataObject = Object.fromEntries(formData.entries());
 
     const submitButton = e.nativeEvent.submitter.name;
 
-    if (submitButton === 'payOffline') {
-      await handlePayOffline(formData);
-    } else if (submitButton === 'payOnline') {
-      await handlePayOnline(formData);
+    if (submitButton === "payOffline") {
+      await handlePayOffline(formDataObject);
+    } else if (submitButton === "payOnline") {
+      await handlePayOnline(formDataObject);
     }
   };
 
@@ -72,7 +134,10 @@ function ReservationForm({ cabin, user }) {
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="bg-primary-900 py-10 px-16 text-lg flex gap-5 flex-col">
+      <form
+        onSubmit={handleSubmit}
+        className="bg-primary-900 py-10 px-16 text-lg flex gap-5 flex-col"
+      >
         <div className="space-y-2">
           <label htmlFor="numGuests">How many guests?</label>
           <select
@@ -113,14 +178,14 @@ function ReservationForm({ cabin, user }) {
             <>
               <button
                 className="bg-accent-500 px-8 py-4 text-primary-800 font-semibold hover:bg-accent-600 transition-all disabled:cursor-not-allowed disabled:bg-gray-500 disabled:text-gray-300"
-                name="payOffline"  
+                name="payOffline"
                 type="submit"
               >
                 Pay on Arrival
               </button>
               <button
                 className="bg-accent-500 px-8 py-4 text-primary-800 font-semibold hover:bg-accent-600 transition-all disabled:cursor-not-allowed disabled:bg-gray-500 disabled:text-gray-300"
-                name="payOnline"  
+                name="payOnline"
                 type="submit"
               >
                 Pay Online
