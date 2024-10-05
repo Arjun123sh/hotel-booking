@@ -35,7 +35,7 @@ function ReservationForm({ cabin, user }) {
       numNights,
       cabinPrice,
       cabinId: id,
-      ...formDataObject, // Including numGuests and other form data
+      ...formDataObject, 
     };
 
     await createBookingWithData(bookingData);
@@ -52,33 +52,57 @@ function ReservationForm({ cabin, user }) {
         ...formDataObject, 
       };
 
-      const orderId = "order_FGhdtZ2XLl9PQR";
+      const amountInPaisa = cabinPrice * 100;
+
       const options = {
-        key: "rzp_test_bztbh8MsUZCI51",
-        amount:  100, 
+        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID, 
+        amount: amountInPaisa, 
         currency: "INR",
-        name: "arjun",
-        description: "Cabin booking",
-        // order_id: orderId,
+        name: "The Wild Oasis",
+        description: `Booking for ${numNights} nights`, 
         handler: async function (response) {
-          if (response.data.isOk) {
-            alert("Payment successful!");
-          } else {
-            alert("Payment verification failed: " + res.data.message);
+          try {
+            const { razorpay_payment_id } = response;
+            if (!razorpay_payment_id) {
+              throw new Error("Payment ID missing from Razorpay response.");
+            }
+  
+            bookingData.paymentId = razorpay_payment_id;
+
+            console.log("Booking data after payment:", bookingData);
+
+            await createBookingOnline(bookingData, formDataObject);
+
+            alert("Payment successful and room booked!");
+
+            resetRange();
+            router.push("/cabins/thankyou"); 
+          } catch (error) {
+            console.error("Error creating booking after payment:", error.message || error);
+            alert("There was an issue creating your booking after payment. Please contact support.");
           }
+        },
+        prefill: {
+          name: formDataObject.name || "Guest",
+          email: formDataObject.email || "", 
         },
       };
 
       const paymentObject = new window.Razorpay(options);
+  
+      // Handle payment failure
       paymentObject.on("payment.failed", function (response) {
+        console.error("Payment failed:", response.error);
         alert("Payment failed: " + response.error.description);
       });
+
       paymentObject.open();
     } catch (error) {
-      console.error("Error during online payment:", error);
+      console.error("Error during online payment process:", error.message || error);
       alert("There was an issue with the payment. Please try again.");
     }
   };
+  
 
   const handleSubmit = async (e) => {
     e.preventDefault();
